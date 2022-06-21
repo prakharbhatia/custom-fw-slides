@@ -100,11 +100,11 @@ add_filter('avf_alb_supported_post_types', 'avf_alb_supported_post_types_mod', 1
 
 //-----------------------------------------------
 //set builder mode to debug
-add_action('avia_builder_mode', "builder_set_debug");
-function builder_set_debug()
-{
-  return "debug";
-}
+// add_action('avia_builder_mode', "builder_set_debug");
+// function builder_set_debug()
+// {
+//   return "debug";
+// }
 //-----------------------------------------------
 function add_column( $columns ){
 	$columns['post_id_clmn'] = 'Shortcode'; // $columns['Column ID'] = 'Column Title';
