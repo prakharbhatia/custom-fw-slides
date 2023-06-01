@@ -4,7 +4,7 @@
 	Plugin URI: https://nandann.com
 	Feed URI: 
 	Description: Adds functionality to create full fidth slides and using avia layout builder and thse slides could be used anywhere using shortcode
-	Version: 1.0.0
+	Version: 1.1.0
 	Author: Prakhar Bhatia
 	Author URI: https://nandann.com
 */
@@ -100,11 +100,11 @@ add_filter('avf_alb_supported_post_types', 'avf_alb_supported_post_types_mod', 1
 
 //-----------------------------------------------
 //set builder mode to debug
-// add_action('avia_builder_mode', "builder_set_debug");
-// function builder_set_debug()
-// {
-//   return "debug";
-// }
+//add_action('avia_builder_mode', "builder_set_debug");
+//function builder_set_debug()
+//{
+//  return "debug";
+//}
 //-----------------------------------------------
 function add_column( $columns ){
 	$columns['post_id_clmn'] = 'Shortcode'; // $columns['Column ID'] = 'Column Title';
@@ -117,17 +117,148 @@ function column_content( $column, $id ){
 		echo "[av_slidecontent link= 'fwslide,". $id ."']";
 }
 add_action('manage_fwslide_posts_custom_column', 'column_content', 5, 2);
+
 //-----------------------------------------------
-
-
-
-
-if( ! defined( 'ABSPATH' ) ) { exit; }
+//-----------------------------------------------
+if( ! defined( 'ABSPATH' ) ) { exit; }		// Don't load directly
 
 if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 {
 
-	abstract class aviaShortcodeTemplate
+	if( ! class_exists( __NAMESPACE__ . '\object_properties' ) )
+{
+	abstract class object_properties
+	{
+		/**
+		 * Is set to true in createProperty()
+		 *
+		 * @since 5.3.1
+		 * @var boolean
+		 */
+		private $forceset;
+
+
+		/**
+		 * Access modifiers changed from public to protected for most properties
+		 * Fallback to allow access for backwards comp.
+		 *
+		 * @since 5.3
+		 * @param string $name
+		 */
+		public function __get( $name )
+		{
+			if( ! property_exists( $this, $name ) )
+			{
+				if( defined( 'WP_DEBUG' ) && WP_DEBUG )
+				{
+					$message = sprintf( __( 'Trying to read non existing property in class %s: %s', 'avia_framework' ), get_class( $this ), $name );
+//					throw new \InvalidArgumentException ( $message );
+					_deprecated_argument( 'Class ' . get_class( $this ), '5.3', $message );
+				}
+
+				return null;
+			}
+
+			$message = sprintf( __( 'Trying to access protected/private property: %s::%s - will become unavailable in a future release. Check for a get method or a filter.', 'avia_framework' ), get_class( $this ), $name );
+			_deprecated_argument( 'Class ' . get_class( $this ), '5.3', $message );
+
+			return $this->{$name};
+		}
+
+		/**
+		 * Access modifiers changed from public to protected for most properties
+		 * Fallback to allow access for backwards comp.
+		 *
+		 * @since 5.3
+		 * @param string $name
+		 * @param mixed $value
+		 */
+		public function __set( $name, $value )
+		{
+			if( true === $this->forceset )
+			{
+				$this->{$name} = $value;
+				return;
+			}
+
+			if( ! property_exists( $this, $name ) )
+			{
+				if( defined( 'WP_DEBUG' ) && WP_DEBUG )
+				{
+					$message = sprintf( __( 'Trying to set non existing property in class %s: %s - please consider to define all properties before using', 'avia_framework' ), get_class( $this ), $name );
+//					throw new \InvalidArgumentException( $message );
+					_deprecated_argument( 'Class ' . get_class( $this ), '5.3', $message );
+				}
+
+				$this->{$name} = $value;
+				return;
+			}
+
+			//	when property was unset() prior this is also called
+			$rp = new \ReflectionProperty( $this, $name );
+
+			if( ! $rp->isPublic() )
+			{
+				$message = sprintf( __( 'Trying to set protected/private property: %s::%s - will become unavailable in a future release. Check for a set method or a filter.', 'avia_framework' ), get_class( $this ), $name );
+				_deprecated_argument( 'Class ' . get_class( $this ), '5.3', $message );
+			}
+
+			$this->{$name} = $value;
+		}
+
+		/**
+		 * Access modifiers changed from public to protected for most properties
+		 * Fallback to allow access for backwards comp.
+		 *
+		 * @since 5.3
+		 * @param string $name
+		 * @param mixed $value
+		 */
+		public function __isset( $name )
+		{
+			if( ! property_exists( $this, $name ) )
+			{
+				return false;
+			}
+
+			return empty( $this->{$name} );
+		}
+
+		/**
+		 * Access modifiers changed from public to protected for most properties
+		 * Fallback to allow access for backwards comp.
+		 *
+		 * @since 5.3
+		 * @param string $name
+		 * @param mixed $value
+		 */
+		public function __unset( $name )
+		{
+			if( property_exists( $this, $name ) )
+			{
+				unset( $this->{$name} );
+			}
+		}
+
+		/**
+		 * Adds a public property to the class
+		 *
+		 * @since 5.3.1
+		 * @param string $name
+		 * @param mixed $value
+		 */
+		public function createProperty( $name, $value )
+		{
+			$this->forceset = true;
+
+			$this->{$name} = $value;
+
+			$this->forceset = false;
+		}
+	}
+
+}
+	abstract class aviaShortcodeTemplate extends object_properties
 	{
 		/**
 		 *
@@ -319,7 +450,9 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 			unset( $this->parent_atts );
 		}
 
-		//init function is executed in AviaBuilder::createShortcode if the shortcode is allowed
+		/**
+		 * executed in AviaBuilder::createShortcode if the shortcode is allowed
+		 */
 		public function init()
 		{
 			$this->create_asset_array();
@@ -400,45 +533,68 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 
 		* $this->config['drop-level'] = 2; // set the drop level for an element. set drop level to -1 if element shouldnt be dropable
 
-
 		*/
-		abstract function shortcode_insert_button();
-
-
-
+		abstract protected function shortcode_insert_button();
 
 
 		/**
-		* holds the function that generates the html code for the frontend
-		*/
-		abstract function shortcode_handler( $atts, $content = '', $shortcodename = '', $meta = '' );
-
-
-
-
-
-		/**
-		* function that gets executed if the shortcode is allowed. allows shortcode to load extra assets like css or javascript files in the admin area
-		*/
-		public function admin_assets(){}
+		 * holds the function that generates the html code for the frontend
+		 *
+		 * As this is the default WP shortcode function we keep it public
+		 */
+		abstract public function shortcode_handler( $atts, $content = '', $shortcodename = '', $meta = '' );
 
 
 		/**
-		* function that checks if an asset is disabled and if not loads all extra assets
+		 * gets executed if the shortcode is allowed.
+		 * Allows shortcode to load extra assets like css or javascript files in the admin area
+		 */
+		protected function admin_assets(){}
+
+
+		/**
+		* checks if an asset is disabled and if not loads all extra assets
 		*/
 		public function extra_asset_check()
 		{
 			//generic check if the assets for this element should be loaded
-			if( ! is_admin() && ( empty( $this->builder->disabled_assets[ $this->config['shortcode'] ] ) || empty( $this->config['disabling_allowed'] ) ) )
+			if( ! $this->is_sc_disabled() )
 			{
 				$this->extra_assets();
 			}
 		}
 
 		/**
-		* function that gets executed if the shortcode is allowed. allows shortcode to load extra assets like css or javascript files
-		*/
-		public function extra_assets(){}
+		 * gets executed if the shortcode is allowed.
+		 * Allows shortcode to load extra assets like css or javascript files
+		 */
+		protected function extra_assets(){}
+
+		/**
+		 * Generic function that checks if a shortcode had been disabled by theme option and is allowed to be disabled
+		 *
+		 * @since 5.5
+		 * @param boolean $in_frontend_only
+		 * @return boolean
+		 */
+		public function is_sc_disabled( $in_frontend_only = true )
+		{
+			if( $in_frontend_only && is_admin() )
+			{
+				return false;
+			}
+
+			if( empty( $this->builder->disabled_assets[ $this->config['shortcode'] ] ) || empty( $this->config['disabling_allowed'] ) )
+			{
+				$disabled = false;
+			}
+			else
+			{
+				$disabled = true;
+			}
+
+			return $disabled;
+		}
 
 		/**
 		 *
@@ -553,10 +709,10 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 		/**
 		 * Scans the $this->elements array recursivly and returns the first element where key = "$element_id"
 		 *
+		 * @since 4.1.3
 		 * @param string $element_id
 		 * @param array $source
 		 * @return array|false
-		 * @since 4.1.3
 		 */
 		public function get_popup_element_by_id( $element_id, array &$source = null )
 		{
@@ -598,6 +754,24 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 		public function unique_css_element_id( array &$atts, $shortcode )
 		{
 			$default_atts = ! empty( $atts ) ? $atts : $this->get_default_sc_args();
+
+			/**
+			 * Remove <br />, <p ..>, </p> \n, \r from content because this is handled differently returning the shortcode attributes
+			 * This results in 2 different id's for the same attribute array
+			 *
+			 * @since 5.0
+			 * @param mixed $content
+			 * @param mixed $key
+			 * @return mixed
+			 */
+			array_walk( $default_atts, function( &$content, $key )
+			{
+				if( is_string( $content ) )
+				{
+					$content = preg_replace( '/<p[^>]*>|<\/p>|<br[^>]*>|\||\n|\r/i', '', $content );
+				}
+			} );
+
 			$hash = md5( serialize( $default_atts ) );
 
 			if( ! isset( $atts[ aviaElementManager::ELEMENT_UID ] ) || empty( $atts[ aviaElementManager::ELEMENT_UID ] ) )
@@ -612,15 +786,13 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 			return $uid;
 		}
 
-
 		/**
 		 * Editor Element - this function defines the visual appearance of an element on the AviaBuilder Canvas
 		 * Most common usage is to define some markup in the $params['innerHtml'] which is then inserted into the drag and drop container
 		 * Less often used: $params['data'] to add data attributes, $params['class'] to modify the className
 		 *
-		 *
-		 * @param array $params this array holds the default values for $content and $args.
-		 * @return $params the return array usually holds an innerHtml key that holds item specific markup.
+		 * @param array $params				this array holds the default values for $content and $args.
+		 * @return array					usually holds an innerHtml key that holds item specific markup.
 		 */
 		public function editor_element( $params )
 		{
@@ -678,7 +850,7 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 
 		/*example:
 
-			function popup_elements()
+			protected function popup_elements()
 			{
 				$this->elements = array(
 
@@ -1406,7 +1578,7 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 			/**
 			 * if the element is disabled do load a notice for admins but do not show the info for other visitors)
 			 */
-			if( empty( $this->builder->disabled_assets[ $this->config['shortcode'] ] ) || empty( $this->config['disabling_allowed'] ) )
+			if( ! $this->is_sc_disabled() )
 			{
 				$out = avia_targeted_link_rel( $this->shortcode_handler( $atts, $content, $shortcodename, $meta ) );
 			}
@@ -1414,7 +1586,7 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 			{
 				$default_msg = 	'<strong>'.__( 'Admin notice for:', 'avia_framework' ) . '</strong><br>' .
 								$this->config['name'] . '<br><br>' .
-								__( 'This element was disabled in your theme settings. You can activate it here:', 'avia_framework' ) . '<br>'.
+								__( 'This element was disabled in your theme settings. You can activate it here:', 'avia_framework' ) . '<br>' .
 							   '<a target="_blank" href="' . admin_url( 'admin.php?page=avia#goto_performance' ) . '">' . __( 'Performance Settings', 'avia_framework' ) . '</a>';
 
 				$msg = isset( $this->config['shortcode_disabled_msg'] ) ? $this->config['shortcode_disabled_msg'] : $default_msg;
@@ -1445,11 +1617,9 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 			return $args[0];
 		}
 
-
-
 		/**
-		* additional config vars that are set automatically
-		*/
+		 * additional config vars that are set automatically
+		 */
 		protected function extra_config()
 		{
 			$this->config['php_class'] = get_class( $this );
@@ -1518,7 +1688,7 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 			}
 
 			//the check is only necessary when $_REQUEST['text'] is set which means we want to show a preview that could be manipulated from outside
-			if( ! is_admin() || empty($_REQUEST['text']) || ( ! empty( $_POST['avia_request'] ) && check_ajax_referer( 'avia_nonce_loader', '_ajax_nonce' ) ) )
+			if( ! is_admin() || empty( $_REQUEST['text'] ) || ( ! empty( $_POST['avia_request'] ) && check_ajax_referer( 'avia_nonce_loader', '_ajax_nonce' ) ) )
 			{
 				add_shortcode( $this->config['shortcode'], array( $this, 'shortcode_handler_prepare' ) );
 
@@ -1597,8 +1767,6 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 			}
 		}
 
-
-
 		/**
 		* filter and action hooks
 		*/
@@ -1622,15 +1790,14 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 
 		}
 
-
 		/**
 		* function that checks the popup_elements configuration array of a shortcode and sets an array that tells the builder class which resources to load
 		*/
 		protected function create_asset_array()
 		{
-			if(!empty($this->elements))
+			if( ! empty( $this->elements ) )
 			{
-				foreach ($this->elements as $element)
+				foreach( $this->elements as $element )
 				{
 					if( $element['type'] == 'iconfont')
 					{
@@ -1795,6 +1962,41 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 			if( ! empty( $nested_sc ) && method_exists( $this, 'get_nested_developer_elements' ) )
 			{
 				$config = $this->get_nested_developer_elements( $nested_sc );
+			}
+
+
+
+			$desc_id_deeplink = ! empty( $config['id_deeplink'] ) ? 'yes' : 'no';
+			$setting = Avia_Builder()->get_developer_settings( 'id_deeplink' );
+
+			switch( $desc_id_deeplink )
+			{
+				case 'no':
+					$class = 'avia-hidden';
+					break;
+				default:
+					$class = in_array( $setting, array( 'deactivate', 'hide' ) ) ? 'avia-hidden' : '';
+					break;
+			}
+
+			if( $class == '' )
+			{
+				$visible++;
+			}
+
+			if( 'yes' == $desc_id_deeplink )
+			{
+				$desc =  __( 'Enter a valid string (case insensitive) to open via URL hashtag. Make sure to only use allowed characters (latin characters, underscores, dashes and numbers, no special characters can be used) and that it is a valid hash string. There is no check for that.', 'avia_framework' );
+
+				$developer[] = array(
+									'name'				=> __( 'Deeplink String', 'avia_framework' ),
+									'desc'				=> $desc,
+									'id'				=> $config['id_deeplink'],
+									'container_class'	=> $class,
+									'type'				=> 'input',
+									'std'				=> '',
+									'tmpl_set_default'	=> false
+								);
 			}
 
 			$desc_id_show = ! empty( $config['alb_desc_id'] ) ? 'yes' : 'no';
@@ -2077,8 +2279,8 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 			$data['modal_ajax_hook'] 	= $this->config['shortcode'];
 			$data['dragdrop-level']		= $this->config['drag-level'];
 			$data['allowed-shortcodes'] = $this->config['shortcode'];
-            $data['preview'] 			= ! empty( $this->config['preview'] ) ? $this->config['preview'] : 0;
-            $data['preview_scale'] 		= ! empty( $this->config['preview_scale'] ) ? $this->config['preview_scale'] : 'noscale';
+			$data['preview'] 			= ! empty( $this->config['preview'] ) ? $this->config['preview'] : 0;
+			$data['preview_scale'] 		= ! empty( $this->config['preview_scale'] ) ? $this->config['preview_scale'] : 'noscale';
 			$data['closing_tag']		= $this->is_self_closing() ? 'no' : 'yes';
 			$data['base_shortcode']		= $this->config['shortcode'];
 			$data['item_shortcode']		= '';
@@ -2115,7 +2317,7 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 			$dataString = AviaHelper::create_data_string( $data );
 
 			$output  = "<div class='avia_sortable_element avia_pop_class {$class} {$this->config['shortcode']} av_drag' {$dataString}>";
-			$output .=		"<div class='avia_sorthandle menu-item-handle'>";
+			$output .=		'<div class="avia_sorthandle menu-item-handle">';
 
 			if( ! empty( $this->config['popup_editor'] ) )
 			{
@@ -2125,7 +2327,7 @@ if ( ! class_exists( 'aviaShortcodeTemplate' ) )
 
 			$output .=			"<a class='avia-save-element' href='#save-element' title='" . __( 'Save Element as Template', 'avia_framework' ) . "'>+</a>";
 			$output .=			"<a class='avia-delete' href='#delete' title='" . __( 'Delete Element', 'avia_framework' ) . "'>x</a>";
-			$output .=			"<a class='avia-clone' href='#clone' title='" . __( 'Clone Element', 'avia_framework' ) . "' >" . __( 'Clone Element', 'avia_framework' ) . "</a>";
+			$output .=			"<a class='avia-clone' href='#clone' title='" . __( 'Clone Element', 'avia_framework' ) . "' >" . __( 'Clone Element', 'avia_framework' ) . '</a>';
 			$output .=		'</div>';
 
 			$output .=		"<div class='avia_inner_shortcode {$extraClass}'>";
